@@ -343,7 +343,8 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     else if (interaction.commandName === 'send') {
-      const channel = interaction.options.getChannel('channel');
+      const channelRaw = interaction.options.getChannel('channel');
+      const channel = await client.channels.fetch(channelRaw.id);
       const title = interaction.options.getString('title');
       const description = interaction.options.getString('description');
       const color = interaction.options.getString('color');
