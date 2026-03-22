@@ -5,7 +5,7 @@ const {
 } = require('discord.js');
 const axios = require('axios');
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
 
 const CONFIG = {
   TOKEN: process.env.DISCORD_TOKEN,
@@ -358,7 +358,7 @@ client.on('interactionCreate', async (interaction) => {
 
     else if (interaction.commandName === 'send') {
       const channelRaw = interaction.options.getChannel('channel');
-      const channel = await client.channels.fetch(channelRaw.id);
+      const channel = interaction.guild.channels.cache.get(channelRaw.id) || await interaction.guild.channels.fetch(channelRaw.id);
       const title = interaction.options.getString('title');
       const description = interaction.options.getString('description');
       const color = interaction.options.getString('color');
