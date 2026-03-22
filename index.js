@@ -1,6 +1,7 @@
 const {
   Client, GatewayIntentBits, EmbedBuilder,
-  SlashCommandBuilder, PermissionFlagsBits, REST, Routes
+  SlashCommandBuilder, PermissionFlagsBits, REST, Routes,
+  ActionRowBuilder, ButtonBuilder, ButtonStyle
 } = require('discord.js');
 const axios = require('axios');
 
@@ -32,6 +33,21 @@ function formatUptime(ms) {
   if (d > 0) return `${d}d ${h % 24}h ${m % 60}m`;
   if (h > 0) return `${h}h ${m % 60}m`;
   return `${m}m ${s % 60}s`;
+}
+
+function resolveColor(input) {
+  if (!input) return EMBED_COLOR;
+  const map = {
+    red: 0xFF0000, blue: 0x0000FF, green: 0x00FF00,
+    white: 0xFFFFFF, black: 0x111111, yellow: 0xFFFF00,
+    purple: 0x9B59B6, orange: 0xFF7700, pink: 0xFF69B4,
+    cyan: 0x00FFFF,
+  };
+  const lower = input.toLowerCase().trim();
+  if (map[lower]) return map[lower];
+  const hex = input.replace('#', '');
+  const parsed = parseInt(hex, 16);
+  return isNaN(parsed) ? EMBED_COLOR : parsed;
 }
 
 async function fetchRobloxVersion() {
@@ -108,8 +124,6 @@ function setupEmbed(channelId, types, ping, roleId) {
   if (ping === 'everyone') pingDisplay = '@everyone';
   else if (ping === 'here') pingDisplay = '@here';
   else if (ping === 'role' && roleId) pingDisplay = `<@&${roleId}>`;
-  else if (ping === 'none') pingDisplay = 'None';
-
   return new EmbedBuilder()
     .setTitle('⬡  Setup Complete')
     .setColor(EMBED_COLOR)
@@ -128,10 +142,8 @@ function testEmbed(settings) {
   const hasUpdates = types.includes('updates') || types.includes('all');
   const hasHistory = types.includes('history') || types.includes('all');
   const hasStatus = types.includes('status') || types.includes('all');
-
   const statusLine = (active, label) =>
     `${active ? '🟢' : '🔴'} **${label}** — ${active ? 'Active' : 'Inactive'}`;
-
   return new EmbedBuilder()
     .setTitle('⬡  Cyclone X')
     .setDescription(
@@ -156,7 +168,6 @@ async function postUpdate(versionData, previousVersion) {
   updateHistory.push(entry);
   if (updateHistory.length > 50) updateHistory.shift();
   totalUpdatesDetected++;
-
   for (const [guildId, settings] of Object.entries(guildSettings)) {
     if (!settings.channelId) continue;
     if (!settings.types.includes('updates') && !settings.types.includes('all')) continue;
@@ -214,13 +225,9 @@ const commands = [
     .setDescription('Configure Roblox update notifications for this server')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addChannelOption(opt =>
-      opt.setName('channel')
-        .setDescription('Channel to post notifications in')
-        .setRequired(true))
+      opt.setName('channel').setDescription('Channel to post notifications in').setRequired(true))
     .addStringOption(opt =>
-      opt.setName('type1')
-        .setDescription('First notification type')
-        .setRequired(true)
+      opt.setName('type1').setDescription('First notification type').setRequired(true)
         .addChoices(
           { name: 'All notifications', value: 'all' },
           { name: 'Updates', value: 'updates' },
@@ -228,27 +235,21 @@ const commands = [
           { name: 'Status', value: 'status' },
         ))
     .addStringOption(opt =>
-      opt.setName('type2')
-        .setDescription('Second notification type (optional)')
-        .setRequired(false)
+      opt.setName('type2').setDescription('Second notification type (optional)').setRequired(false)
         .addChoices(
           { name: 'Updates', value: 'updates' },
           { name: 'History', value: 'history' },
           { name: 'Status', value: 'status' },
         ))
     .addStringOption(opt =>
-      opt.setName('type3')
-        .setDescription('Third notification type (optional)')
-        .setRequired(false)
+      opt.setName('type3').setDescription('Third notification type (optional)').setRequired(false)
         .addChoices(
           { name: 'Updates', value: 'updates' },
           { name: 'History', value: 'history' },
           { name: 'Status', value: 'status' },
         ))
     .addStringOption(opt =>
-      opt.setName('ping')
-        .setDescription('Who to ping when an update is posted')
-        .setRequired(false)
+      opt.setName('ping').setDescription('Who to ping when an update is posted').setRequired(false)
         .addChoices(
           { name: '@everyone', value: 'everyone' },
           { name: '@here', value: 'here' },
@@ -256,15 +257,49 @@ const commands = [
           { name: 'No ping', value: 'none' },
         ))
     .addRoleOption(opt =>
-      opt.setName('role')
-        .setDescription('Role to ping (only used if ping is set to "A specific role")')
-        .setRequired(false)),
+      opt.setName('role').setDescription('Role to ping (only if ping is set to role)').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('send')
+    .setDescription('Send a custom embed to a channel')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+    .addChannelOption(opt =>
+      opt.setName('channel').setDescription('Channel to send the embed to').setRequired(true))
+    .addStringOption(opt =>
+      opt.setName('title').setDescription('Embed title').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('description').setDescription('Embed description / main text').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('color').setDescription('Color (e.g. red, blue, #FF0000)').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('footer').setDescription('Footer text').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('image').setDescription('Image URL (large image at bottom)').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('thumbnail').setDescription('Thumbnail URL (small image top right)').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('field1').setDescription('Field 1 — format: Title | Value').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('field2').setDescription('Field 2 — format: Title | Value').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('field3').setDescription('Field 3 — format: Title | Value').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('button_label').setDescription('Link button label (e.g. "Visit Website")').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('button_url').setDescription('Link button URL').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('setavatar')
+    .setDescription('Change the bot\'s global avatar (bot owner only)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addStringOption(opt =>
+      opt.setName('url').setDescription('Direct image URL for the new avatar').setRequired(true)),
 
 ].map(c => c.toJSON());
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-  await interaction.deferReply();
+  await interaction.deferReply({ ephemeral: true });
 
   try {
     if (interaction.commandName === 'currentversion') {
@@ -279,20 +314,20 @@ client.on('interactionCreate', async (interaction) => {
         )
         .setFooter({ text: 'Cyclone X • Roblox Update Tracker' })
         .setTimestamp();
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed], ephemeral: false });
     }
 
     else if (interaction.commandName === 'history') {
-      await interaction.editReply({ embeds: [historyEmbed()] });
+      await interaction.editReply({ embeds: [historyEmbed()], ephemeral: false });
     }
 
     else if (interaction.commandName === 'status') {
-      await interaction.editReply({ embeds: [statusEmbed()] });
+      await interaction.editReply({ embeds: [statusEmbed()], ephemeral: false });
     }
 
     else if (interaction.commandName === 'test') {
       const settings = guildSettings[interaction.guildId] || null;
-      await interaction.editReply({ embeds: [testEmbed(settings)] });
+      await interaction.editReply({ embeds: [testEmbed(settings)], ephemeral: false });
     }
 
     else if (interaction.commandName === 'setup') {
@@ -302,24 +337,74 @@ client.on('interactionCreate', async (interaction) => {
       const type3 = interaction.options.getString('type3');
       const ping = interaction.options.getString('ping') || 'none';
       const role = interaction.options.getRole('role');
-
-      // Collect unique types
       const types = [...new Set([type1, type2, type3].filter(Boolean))];
+      guildSettings[interaction.guildId] = { channelId: channel.id, types, ping, roleId: role ? role.id : null };
+      await interaction.editReply({ embeds: [setupEmbed(channel.id, types, ping, role?.id)], ephemeral: false });
+    }
 
-      guildSettings[interaction.guildId] = {
-        channelId: channel.id,
-        types,
-        ping,
-        roleId: role ? role.id : null,
-      };
+    else if (interaction.commandName === 'send') {
+      const channel = interaction.options.getChannel('channel');
+      const title = interaction.options.getString('title');
+      const description = interaction.options.getString('description');
+      const color = interaction.options.getString('color');
+      const footer = interaction.options.getString('footer');
+      const image = interaction.options.getString('image');
+      const thumbnail = interaction.options.getString('thumbnail');
+      const field1 = interaction.options.getString('field1');
+      const field2 = interaction.options.getString('field2');
+      const field3 = interaction.options.getString('field3');
+      const buttonLabel = interaction.options.getString('button_label');
+      const buttonUrl = interaction.options.getString('button_url');
 
-      console.log(`⚙️ Guild ${interaction.guildId} → #${channel.name} → ${types.join(',')} → ping:${ping}`);
-      await interaction.editReply({ embeds: [setupEmbed(channel.id, types, ping, role?.id)] });
+      if (!title && !description) {
+        return await interaction.editReply({ content: '❌ You need at least a title or description!', ephemeral: true });
+      }
+
+      const embed = new EmbedBuilder().setColor(resolveColor(color));
+      if (title) embed.setTitle(title);
+      if (description) embed.setDescription(description);
+      if (footer) embed.setFooter({ text: footer });
+      if (image) embed.setImage(image);
+      if (thumbnail) embed.setThumbnail(thumbnail);
+      embed.setTimestamp();
+
+      for (const raw of [field1, field2, field3]) {
+        if (!raw) continue;
+        const [name, ...rest] = raw.split('|');
+        const value = rest.join('|').trim() || '\u200b';
+        if (name?.trim()) embed.addFields({ name: name.trim(), value, inline: true });
+      }
+
+      const components = [];
+      if (buttonLabel && buttonUrl) {
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel(buttonLabel)
+            .setURL(buttonUrl)
+            .setStyle(ButtonStyle.Link)
+        );
+        components.push(row);
+      }
+
+      await channel.send({ embeds: [embed], components });
+      await interaction.editReply({ content: `✅ Embed sent to <#${channel.id}>!`, ephemeral: true });
+    }
+
+    else if (interaction.commandName === 'setavatar') {
+      const url = interaction.options.getString('url');
+      try {
+        const imageRes = await axios.get(url, { responseType: 'arraybuffer', timeout: 10000 });
+        const buffer = Buffer.from(imageRes.data);
+        await client.user.setAvatar(buffer);
+        await interaction.editReply({ content: '✅ Bot avatar updated!', ephemeral: true });
+      } catch (e) {
+        await interaction.editReply({ content: `❌ Failed to update avatar. Make sure the URL is a direct image link.\n\`${e.message}\``, ephemeral: true });
+      }
     }
 
   } catch (err) {
     console.error('Command error:', err);
-    await interaction.editReply('❌ Something went wrong. Please try again.');
+    await interaction.editReply({ content: '❌ Something went wrong. Please try again.', ephemeral: true });
   }
 });
 
