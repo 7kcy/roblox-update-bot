@@ -313,7 +313,7 @@ const commands = [
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply();
 
   try {
     if (interaction.commandName === 'currentversion') {
@@ -328,20 +328,20 @@ client.on('interactionCreate', async (interaction) => {
         )
         .setFooter({ text: 'Cyclone X • Roblox Update Tracker' })
         .setTimestamp();
-      await interaction.editReply({ embeds: [embed], ephemeral: false });
+      await interaction.editReply({ embeds: [embed] });
     }
 
     else if (interaction.commandName === 'history') {
-      await interaction.editReply({ embeds: [historyEmbed()], ephemeral: false });
+      await interaction.editReply({ embeds: [historyEmbed()] });
     }
 
     else if (interaction.commandName === 'status') {
-      await interaction.editReply({ embeds: [statusEmbed()], ephemeral: false });
+      await interaction.editReply({ flags: 64, embeds: [statusEmbed()] });
     }
 
     else if (interaction.commandName === 'test') {
       const settings = guildSettings[interaction.guildId] || null;
-      await interaction.editReply({ embeds: [testEmbed(settings)], ephemeral: false });
+      await interaction.editReply({ flags: 64, embeds: [testEmbed(settings)] });
     }
 
     else if (interaction.commandName === 'setup') {
@@ -353,7 +353,7 @@ client.on('interactionCreate', async (interaction) => {
       const role = interaction.options.getRole('role');
       const types = [...new Set([type1, type2, type3].filter(Boolean))];
       guildSettings[interaction.guildId] = { channelId: channel.id, types, ping, roleId: role ? role.id : null };
-      await interaction.editReply({ embeds: [setupEmbed(channel.id, types, ping, role?.id)], ephemeral: false });
+      await interaction.editReply({ embeds: [setupEmbed(channel.id, types, ping, role?.id)] });
     }
 
     else if (interaction.commandName === 'send') {
