@@ -284,6 +284,20 @@ const commands = [
     .addStringOption(opt =>
       opt.setName('field3').setDescription('Field 3 — format: Title | Value').setRequired(false))
     .addStringOption(opt =>
+      opt.setName('field4').setDescription('Field 4 — format: Title | Value').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('field5').setDescription('Field 5 — format: Title | Value').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('field6').setDescription('Field 6 — format: Title | Value').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('field7').setDescription('Field 7 — format: Title | Value').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('field8').setDescription('Field 8 — format: Title | Value').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('field9').setDescription('Field 9 — format: Title | Value').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('field10').setDescription('Field 10 — format: Title | Value').setRequired(false))
+    .addStringOption(opt =>
       opt.setName('button_label').setDescription('Link button label (e.g. "Visit Website")').setRequired(false))
     .addStringOption(opt =>
       opt.setName('button_url').setDescription('Link button URL').setRequired(false)),
@@ -354,6 +368,13 @@ client.on('interactionCreate', async (interaction) => {
       const field1 = interaction.options.getString('field1');
       const field2 = interaction.options.getString('field2');
       const field3 = interaction.options.getString('field3');
+      const field4 = interaction.options.getString('field4');
+      const field5 = interaction.options.getString('field5');
+      const field6 = interaction.options.getString('field6');
+      const field7 = interaction.options.getString('field7');
+      const field8 = interaction.options.getString('field8');
+      const field9 = interaction.options.getString('field9');
+      const field10 = interaction.options.getString('field10');
       const buttonLabel = interaction.options.getString('button_label');
       const buttonUrl = interaction.options.getString('button_url');
 
@@ -369,7 +390,7 @@ client.on('interactionCreate', async (interaction) => {
       if (thumbnail) embed.setThumbnail(thumbnail);
       embed.setTimestamp();
 
-      for (const raw of [field1, field2, field3]) {
+      for (const raw of [field1, field2, field3, field4, field5, field6, field7, field8, field9, field10]) {
         if (!raw) continue;
         const [name, ...rest] = raw.split('|');
         const value = rest.join('|').trim() || '\u200b';
