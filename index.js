@@ -39,6 +39,14 @@ async function fetchRobloxVersion() {
   return { version: res.data.clientVersionUpload };
 }
 
+function getPingContent(settings) {
+  if (!settings.ping) return '';
+  if (settings.ping === 'everyone') return '@everyone';
+  if (settings.ping === 'here') return '@here';
+  if (settings.ping === 'role' && settings.roleId) return `<@&${settings.roleId}>`;
+  return '';
+}
+
 function updateEmbed(versionData, previousVersion) {
   const embed = new EmbedBuilder()
     .setTitle('⬡  Roblox Updated')
@@ -95,14 +103,49 @@ function statusEmbed() {
     .setTimestamp();
 }
 
-function setupEmbed(channelId, type) {
+function setupEmbed(channelId, types, ping, roleId) {
+  let pingDisplay = 'None';
+  if (ping === 'everyone') pingDisplay = '@everyone';
+  else if (ping === 'here') pingDisplay = '@here';
+  else if (ping === 'role' && roleId) pingDisplay = `<@&${roleId}>`;
+  else if (ping === 'none') pingDisplay = 'None';
+
   return new EmbedBuilder()
     .setTitle('⬡  Setup Complete')
     .setColor(EMBED_COLOR)
-    .setDescription('This server is now configured to receive Roblox update notifications.')
+    .setDescription('Cyclone X is now configured for this server.')
     .addFields(
       { name: 'Channel', value: `<#${channelId}>`, inline: true },
-      { name: 'Notifications', value: type, inline: true },
+      { name: 'Notifications', value: types.join(', '), inline: true },
+      { name: 'Ping', value: pingDisplay, inline: true },
+    )
+    .setFooter({ text: 'Cyclone X • Roblox Update Tracker' })
+    .setTimestamp();
+}
+
+function testEmbed(settings) {
+  const types = settings ? settings.types : [];
+  const hasUpdates = types.includes('updates') || types.includes('all');
+  const hasHistory = types.includes('history') || types.includes('all');
+  const hasStatus = types.includes('status') || types.includes('all');
+
+  const statusLine = (active, label) =>
+    `${active ? '🟢' : '🔴'} **${label}** — ${active ? 'Active' : 'Inactive'}`;
+
+  return new EmbedBuilder()
+    .setTitle('⬡  Cyclone X')
+    .setDescription(
+      `**Cyclone X Is activated with these statuses:**\n\n` +
+      `${statusLine(hasUpdates, 'Update Notifications')}\n` +
+      `${statusLine(hasHistory, 'History Tracking')}\n` +
+      `${statusLine(hasStatus, 'Status Reports')}\n` +
+      `${statusLine(!!settings, 'Server Setup')}`
+    )
+    .setColor(EMBED_COLOR)
+    .addFields(
+      { name: 'Channel', value: settings ? `<#${settings.channelId}>` : 'Not configured', inline: true },
+      { name: 'Ping', value: settings ? (settings.ping === 'everyone' ? '@everyone' : settings.ping === 'here' ? '@here' : settings.roleId ? `<@&${settings.roleId}>` : 'None') : 'None', inline: true },
+      { name: 'Uptime', value: formatUptime(Date.now() - startTime), inline: true },
     )
     .setFooter({ text: 'Cyclone X • Roblox Update Tracker' })
     .setTimestamp();
@@ -120,7 +163,8 @@ async function postUpdate(versionData, previousVersion) {
     try {
       const channel = await client.channels.fetch(settings.channelId);
       if (!channel) continue;
-      await channel.send({ content: '@everyone', embeds: [updateEmbed(versionData, previousVersion)] });
+      const ping = getPingContent(settings);
+      await channel.send({ content: ping || undefined, embeds: [updateEmbed(versionData, previousVersion)] });
     } catch (e) {
       console.error(`Failed to post to guild ${guildId}:`, e.message);
     }
@@ -133,7 +177,7 @@ async function checkForUpdates() {
     const currentVersion = data.version;
     if (lastKnownVersion === null) {
       lastKnownVersion = currentVersion;
-      console.log(`🔍 Watching for updates. Current: ${currentVersion}`);
+      console.log(`🔍 Watching. Current: ${currentVersion}`);
       return;
     }
     if (currentVersion !== lastKnownVersion) {
@@ -152,12 +196,19 @@ const commands = [
   new SlashCommandBuilder()
     .setName('currentversion')
     .setDescription('Show the current live Roblox version'),
+
   new SlashCommandBuilder()
     .setName('history')
     .setDescription('Show the last 5 Roblox updates detected by the bot'),
+
   new SlashCommandBuilder()
     .setName('status')
     .setDescription('Show the bot status and uptime'),
+
+  new SlashCommandBuilder()
+    .setName('test')
+    .setDescription('Test the bot and show active statuses for this server'),
+
   new SlashCommandBuilder()
     .setName('setup')
     .setDescription('Configure Roblox update notifications for this server')
@@ -167,20 +218,54 @@ const commands = [
         .setDescription('Channel to post notifications in')
         .setRequired(true))
     .addStringOption(opt =>
-      opt.setName('type')
-        .setDescription('What to post in the channel')
+      opt.setName('type1')
+        .setDescription('First notification type')
         .setRequired(true)
         .addChoices(
           { name: 'All notifications', value: 'all' },
-          { name: 'Updates only', value: 'updates' },
-          { name: 'History only', value: 'history' },
-          { name: 'Status only', value: 'status' },
-        )),
+          { name: 'Updates', value: 'updates' },
+          { name: 'History', value: 'history' },
+          { name: 'Status', value: 'status' },
+        ))
+    .addStringOption(opt =>
+      opt.setName('type2')
+        .setDescription('Second notification type (optional)')
+        .setRequired(false)
+        .addChoices(
+          { name: 'Updates', value: 'updates' },
+          { name: 'History', value: 'history' },
+          { name: 'Status', value: 'status' },
+        ))
+    .addStringOption(opt =>
+      opt.setName('type3')
+        .setDescription('Third notification type (optional)')
+        .setRequired(false)
+        .addChoices(
+          { name: 'Updates', value: 'updates' },
+          { name: 'History', value: 'history' },
+          { name: 'Status', value: 'status' },
+        ))
+    .addStringOption(opt =>
+      opt.setName('ping')
+        .setDescription('Who to ping when an update is posted')
+        .setRequired(false)
+        .addChoices(
+          { name: '@everyone', value: 'everyone' },
+          { name: '@here', value: 'here' },
+          { name: 'A specific role', value: 'role' },
+          { name: 'No ping', value: 'none' },
+        ))
+    .addRoleOption(opt =>
+      opt.setName('role')
+        .setDescription('Role to ping (only used if ping is set to "A specific role")')
+        .setRequired(false)),
+
 ].map(c => c.toJSON());
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   await interaction.deferReply();
+
   try {
     if (interaction.commandName === 'currentversion') {
       const data = await fetchRobloxVersion();
@@ -196,19 +281,42 @@ client.on('interactionCreate', async (interaction) => {
         .setTimestamp();
       await interaction.editReply({ embeds: [embed] });
     }
+
     else if (interaction.commandName === 'history') {
       await interaction.editReply({ embeds: [historyEmbed()] });
     }
+
     else if (interaction.commandName === 'status') {
       await interaction.editReply({ embeds: [statusEmbed()] });
     }
+
+    else if (interaction.commandName === 'test') {
+      const settings = guildSettings[interaction.guildId] || null;
+      await interaction.editReply({ embeds: [testEmbed(settings)] });
+    }
+
     else if (interaction.commandName === 'setup') {
       const channel = interaction.options.getChannel('channel');
-      const type = interaction.options.getString('type');
-      guildSettings[interaction.guildId] = { channelId: channel.id, types: [type] };
-      console.log(`⚙️ Guild ${interaction.guildId} → #${channel.name} → ${type}`);
-      await interaction.editReply({ embeds: [setupEmbed(channel.id, type)] });
+      const type1 = interaction.options.getString('type1');
+      const type2 = interaction.options.getString('type2');
+      const type3 = interaction.options.getString('type3');
+      const ping = interaction.options.getString('ping') || 'none';
+      const role = interaction.options.getRole('role');
+
+      // Collect unique types
+      const types = [...new Set([type1, type2, type3].filter(Boolean))];
+
+      guildSettings[interaction.guildId] = {
+        channelId: channel.id,
+        types,
+        ping,
+        roleId: role ? role.id : null,
+      };
+
+      console.log(`⚙️ Guild ${interaction.guildId} → #${channel.name} → ${types.join(',')} → ping:${ping}`);
+      await interaction.editReply({ embeds: [setupEmbed(channel.id, types, ping, role?.id)] });
     }
+
   } catch (err) {
     console.error('Command error:', err);
     await interaction.editReply('❌ Something went wrong. Please try again.');
